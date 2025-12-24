@@ -685,7 +685,7 @@ app.get("/redirect/:status", async (req, res) => {
 });
 
 app.get("/dashboard", requireLogin, (req, res) => {
-  return res.redirect("/");
+  res.render("dashboard");
 });
 
 // --- Start app
