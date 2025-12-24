@@ -693,9 +693,8 @@ app.get("/redirect/:status", async (req, res) => {
 });
 
 app.get("/dashboard", requireLogin, (req, res) => {
-  res.render("dashboard");
+  return res.redirect("/");
 });
-
 // --- Start app
 (async () => {
   await migrateAndSeed();
