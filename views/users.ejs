@@ -92,10 +92,21 @@
     <h4>Reset Password</h4>
 <div class="muted">Only Admin can reset passwords. Use carefully.</div>
 
-<form method="post" id="resetForm">
+<h4>Reset Password</h4>
+<div class="muted">Only Admin can reset passwords. Use carefully.</div>
+
+<form method="post" id="resetForm" action="/users/1/reset-password">
   <div class="field">
     <label>User ID*</label>
-    <input name="id" id="resetId" type="number" min="1" required />
+    <input
+      name="id"
+      id="resetId"
+      type="text"
+      inputmode="numeric"
+      pattern="[0-9]*"
+      placeholder="e.g. 2"
+      required
+    />
   </div>
 
   <div class="field">
@@ -108,7 +119,7 @@
 
 <script>
   document.getElementById('resetForm').addEventListener('submit', function () {
-    const id = document.getElementById('resetId').value;
+    const id = (document.getElementById('resetId').value || '').trim();
     this.action = '/users/' + encodeURIComponent(id) + '/reset-password';
   });
 </script>
