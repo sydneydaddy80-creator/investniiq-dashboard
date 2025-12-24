@@ -569,7 +569,6 @@ app.post("/users", requireRole(["admin"]), async (req, res) => {
     res.status(400).render("users", { users, error: e.message });
   }
 });
-
 app.post("/users/:id/reset-password", requireRole(["admin"]), async (req, res) => {
   const id = Number(req.params.id);
   const { new_password } = req.body;
@@ -579,7 +578,6 @@ app.post("/users/:id/reset-password", requireRole(["admin"]), async (req, res) =
   db.close();
   res.redirect("/users");
 });
-
 // Enable/Disable user (admin only)
 app.post("/users/:id/status", requireRole(["admin"]), async (req, res) => {
   const id = Number(req.params.id);
