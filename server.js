@@ -22,7 +22,7 @@ app.use(methodOverride("_method"));
 
 app.use(session({
   store: new SQLiteStore({ db: "sessions.sqlite", dir: __dirname }),
-  secret: "dev-secret-change-me",
+  secret: "investniiq-prod-2025-super-secret",
   resave: false,
   saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: "lax" }
