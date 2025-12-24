@@ -29,11 +29,12 @@
       <h3 style="margin-top:0">User List</h3>
       <table>
         <thead>
-          <tr><th>Name</th><th>Email</th><th>Status</th><th>Role</th><th>Created</th><% if (user.role==='admin') { %><th>Actions</th><% } %></tr>
+          <tr><th>ID</th><th>Name</th><th>Email</th><th>Status</th><th>Role</th><th>Created</th><% if (user.role==='admin') { %><th>Actions</th><% } %></tr>
         </thead>
         <tbody>
           <% users.forEach(u => { %>
             <tr>
+              <td><%= u.id %></td>
               <td><%= u.name %></td>
               <td><%= u.email %></td>
               <td><%= u.status %></td>
