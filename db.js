@@ -163,7 +163,9 @@ async function migrateAndSeed() {
   // Seed default users if not exists
   const admin = await get(db, "SELECT id FROM users WHERE email = ?", ["admin@investniiq.local"]);
   if (!admin) {
-    const now = new Date().toISOString();
+    const now = new Date().toLocaleString("sv-SE", {
+  timeZone: "Asia/Kolkata"
+}).replace(" ", "T");
 
     const seeds = [
       { name: "Admin", email: "admin@investniiq.local", role: "admin", pass: "Admin@123" },
