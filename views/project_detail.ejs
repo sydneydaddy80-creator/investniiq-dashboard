@@ -1,0 +1,347 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Project <%= project.project_number %></title>
+  <%- include('_style') %>
+<%
+  function fmtIST(iso) {
+    try {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      return new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+      }).format(d).replace(',', '');
+    } catch(e) { return iso; }
+  }
+%>
+
+</head>
+<body>
+<header>
+  <div style="font-weight:800">Project: <%= project.project_name %> (PN: <%= project.project_number %>)</div>
+  <div class="top-actions">
+    <a class="btn secondary" href="/projects">Back</a>
+    <a class="btn secondary" href="/">Dashboard</a>
+    <form method="post" action="/logout" style="margin:0">
+      <button class="btn secondary" type="submit">Logout</button>
+    </form>
+  </div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center;">
+      <div>
+        <div class="muted">Project UID (8 chars): <code><%= project.project_uid %></code></div>
+        <div class="muted">Client: <b><%= project.client_name || '-' %></b> | Manager: <b><%= project.manager_name || '-' %></b> | Status: <span class="pill <%= project.status %>"><%= project.status %></span></div>
+      </div>
+      <div class="muted">Role: <b><%= user.role %></b></div>
+    </div>
+
+    <div class="tabs">
+      <a class="tab <%= tab==='redirects'?'active':'' %>" href="/projects/<%= project.id %>?tab=redirects">1) Redirects</a>
+      <a class="tab <%= tab==='entrylinks'?'active':'' %>" href="/projects/<%= project.id %>?tab=entrylinks">2) Entry Links</a>
+      <a class="tab <%= tab==='clicks'?'active':'' %>" href="/projects/<%= project.id %>?tab=clicks">3) Click Result</a>
+      <a class="tab <%= tab==='details'?'active':'' %>" href="/projects/<%= project.id %>?tab=details">4) Details</a>
+      <a class="tab <%= tab==='billing'?'active':'' %>" href="/projects/<%= project.id %>?tab=billing">5) Billing</a>
+    </div>
+
+    <% if (tab === 'redirects') { %>
+      <h3>Redirects Generator (Investniiq)</h3>
+      <div class="muted">Use these URLs as survey end links. Prefer passing <code>mid</code> (Masked ID) for 100% matching.</div>
+      <div class="card" style="margin-top:10px;background:#fafafa;">
+        <div><b>Complete</b><br/><code><%= redirects.complete %></code></div><br/>
+        <div><b>Terminate</b><br/><code><%= redirects.terminate %></code></div><br/>
+        <div><b>Quota Full</b><br/><code><%= redirects.quotafull %></code></div><br/>
+        <div><b>Security Terminate</b><br/><code><%= redirects.securityTerminate %></code></div>
+      </div>
+
+    <% } else if (tab === 'entrylinks') { %>
+      <h3>Entry Links (Client links + Investniiq branded links)</h3>
+
+      <div class="grid">
+        <div class="card" style="grid-column: span 6;">
+          <h4 style="margin-top:0">Client Survey Links (Paste here)</h4>
+          <% if (canEdit) { %>
+          <form method="post" action="/projects/<%= project.id %>/links?_method=PUT">
+            <div class="field">
+              <label>Client Live Link</label>
+              <input name="client_live_link" value="<%= project.client_live_link || '' %>" placeholder="Client live URL with {ID} placeholder" />
+              <div class="muted">Use placeholder like <code>{ID}</code> in client URL. We will replace it with <b>Masked ID</b> (shared with client).</div>
+            </div>
+            <div class="field">
+              <label>Client Test Link</label>
+              <input name="client_test_link" value="<%= project.client_test_link || '' %>" placeholder="Client test URL with {ID} placeholder" />
+            </div>
+            <button class="btn" type="submit">Save Links</button>
+          </form>
+          <% } else { %>
+            <div class="muted">View only (Admin/Manager can edit)</div>
+            <div class="field"><label>Client Live Link</label><input value="<%= project.client_live_link || '' %>" readonly/></div>
+            <div class="field"><label>Client Test Link</label><input value="<%= project.client_test_link || '' %>" readonly/></div>
+          <% } %>
+        </div>
+
+        
+        <div class="card" style="grid-column: span 12;">
+          <h4 style="margin-top:0">Country-wise Entry Links (Save multiple)</h4>
+          <div class="muted">Use this when a single project has different client links by country. You can save Live/Test links with optional remarks.</div>
+
+          <% if (canEdit) { %>
+          <form method="post" action="/projects/<%= project.id %>/country-links" style="margin-top:10px;">
+            <div class="row" style="gap:10px;flex-wrap:wrap;">
+              <div class="field" style="flex:1;min-width:180px;">
+                <label>Country Name</label>
+                <input name="country_name" placeholder="e.g., India / USA / UK" required />
+              </div>
+              <div class="field" style="width:180px;">
+                <label>Mode</label>
+                <select name="mode" required>
+                  <option value="live">Live</option>
+                  <option value="test">Test</option>
+                </select>
+              </div>
+              <div class="field" style="flex:2;min-width:280px;">
+                <label>Link URL</label>
+                <input name="link_url" placeholder="Paste client link (can include {ID})" required />
+              </div>
+              <div class="field" style="flex:1;min-width:220px;">
+                <label>Remark (optional)</label>
+                <input name="remark" placeholder="Any notes for this link" />
+              </div>
+            </div>
+            <button class="btn" type="submit">Save Country Link</button>
+          </form>
+          <% } %>
+
+          <div style="margin-top:12px;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Country</th>
+                  <th>Mode</th>
+                  <th>Link</th>
+                  <th>Remark</th>
+                  <th>Created</th>
+                  <% if (canEdit) { %><th>Action</th><% } %>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (!countryLinks || countryLinks.length === 0) { %>
+                  <tr><td colspan="<%= canEdit ? 6 : 5 %>" class="muted">No country links saved yet.</td></tr>
+                <% } else { %>
+                  <% countryLinks.forEach(l => { %>
+                    <tr>
+                      <td><%= l.country_name %></td>
+                      <td><%= l.mode %></td>
+                      <td style="max-width:420px;word-break:break-all;"><code><%= l.link_url %></code></td>
+                      <td><%= l.remark || '-' %></td>
+                      <td><%= (l.created_at || '').slice(0,19).replace('T',' ') %></td>
+                      <% if (canEdit) { %>
+                        <td>
+                          <form method="post" action="/projects/<%= project.id %>/country-links/<%= l.id %>?_method=DELETE" onsubmit="return confirm('Delete this link?');" style="display:inline;">
+                            <button class="btn danger" type="submit">Delete</button>
+                          </form>
+                        </td>
+                      <% } %>
+                    </tr>
+                  <% }) %>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+<div class="card" style="grid-column: span 6;">
+          <h4 style="margin-top:0">Investniiq Project Links (Auto-generated)</h4>
+          <div class="muted">Team will replace <code>{USER_ID}</code> (internal) and run in browser. Client will only see Masked ID.</div>
+          <div class="card" style="background:#f2e9ff;border-color:#ead9ff;">
+            <div><b>Live Entry Link</b><br/><code><%= investLive %></code></div><br/>
+            <div><b>Test Entry Link</b><br/><code><%= investTest %></code></div>
+          </div>
+          <div class="muted" style="margin-top:10px;">Example run: <code><%= investLive.replace('{USER_ID}','78654') %></code></div>
+
+          <hr style="margin:14px 0"/>
+          <h4 style="margin-top:0">Redirects (Update + Copy)</h4>
+          <div class="muted">Client/vendor should set these as end redirects. Keep <code>{MASKED_ID}</code> as-is.</div>
+
+          <% if (canEdit) { %>
+            <form method="post" action="/projects/<%= project.id %>/redirects?_method=PUT">
+              <div class="field">
+                <label>Complete Redirect URL</label>
+                <input name="redirect_complete_url" value="<%= redirects.complete %>" />
+              </div>
+              <div class="field">
+                <label>Terminate Redirect URL</label>
+                <input name="redirect_terminate_url" value="<%= redirects.terminate %>" />
+              </div>
+              <div class="field">
+                <label>Quota Full Redirect URL</label>
+                <input name="redirect_quotafull_url" value="<%= redirects.quotafull %>" />
+              </div>
+              <div class="field">
+                <label>Security Terminate Redirect URL</label>
+                <input name="redirect_securityterminate_url" value="<%= redirects.securityTerminate %>" />
+              </div>
+              <button class="btn" type="submit">Save Redirects</button>
+            </form>
+          <% } else { %>
+            <div class="field"><label>Complete</label><input value="<%= redirects.complete %>" readonly/></div>
+            <div class="field"><label>Terminate</label><input value="<%= redirects.terminate %>" readonly/></div>
+            <div class="field"><label>Quota Full</label><input value="<%= redirects.quotafull %>" readonly/></div>
+            <div class="field"><label>Security Terminate</label><input value="<%= redirects.securityTerminate %>" readonly/></div>
+          <% } %>
+        </div>
+      </div>
+
+    <% } else if (tab === 'clicks') { %>
+      <h3>Click Result</h3>
+      <div class="muted">Tracks Entry + Exit. Masked ID is auto-generated 36-char UUID for every run.</div>
+      <table style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th>User ID</th>
+            <th>Masked ID</th>
+            <th>Mode</th>
+            <th>Entry Time</th>
+            <th>Entry IP</th>
+            <th>Entry Country</th>
+            <th>Status</th>
+            <th>Exit Time</th>
+            <th>Exit IP</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% clicks.forEach(c => { %>
+            <tr>
+              <td><%= c.user_id %></td>
+              <td><code><%= c.masked_id %></code></td>
+              <td><%= c.mode %></td>
+              <td><%= fmtIST(c.entry_time) %></td>
+              <td><%= c.entry_ip || '-' %></td>
+              <td><%= c.entry_country || '-' %></td>
+              <td><%= c.status %></td>
+              <td><%= fmtIST(c.exit_time) %></td>
+              <td><%= c.exit_ip || '-' %></td>
+              <td><%= c.total_time || '-' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+
+    <% } else if (tab === 'details') { %>
+      <h3>Project Details</h3>
+      <% if (canEdit) { %>
+      <form method="post" action="/projects/<%= project.id %>?_method=PUT">
+        <div class="grid">
+          <div class="card" style="grid-column: span 6;">
+            <h4 style="margin-top:0">Details</h4>
+            <div class="field"><label>Project Name*</label><input name="project_name" value="<%= project.project_name %>" required/></div>
+            <div class="field">
+              <label>Client</label>
+              <select name="client_id">
+                <option value="">-- Select Client --</option>
+                <% clients.forEach(c => { %>
+                  <option value="<%= c.id %>" <%= (project.client_id===c.id ? 'selected' : '') %>><%= c.name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="field">
+              <label>Project Manager</label>
+              <select name="project_manager_id">
+                <option value="">-- Select Manager --</option>
+                <% managers.forEach(m => { %>
+                  <option value="<%= m.id %>" <%= (project.project_manager_id===m.id ? 'selected' : '') %>><%= m.name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="field">
+              <label>Status</label>
+              <select name="status">
+                <% [{v:'pending',t:'PENDING'},{v:'live',t:'LIVE'},{v:'paused',t:'PAUSED'}].forEach(st => { %>
+                  <option value="<%= st.v %>" <%= (project.status===st.v ? 'selected' : '') %>><%= st.t %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="field"><label>Currency</label><input name="currency" value="<%= project.currency %>" /></div>
+            <div class="field"><label>PO Number</label><input name="po_number" value="<%= project.po_number || '' %>" /></div>
+          </div>
+
+          <div class="card" style="grid-column: span 6;">
+            <h4 style="margin-top:0">Study Specification</h4>
+            <div class="field"><label>Study Type</label><input name="study_type" value="<%= project.study_type || '' %>" /></div>
+            <div class="row">
+              <div style="flex:1" class="field"><label>LOI</label><input name="loi" type="number" min="0" value="<%= project.loi || '' %>" /></div>
+              <div style="flex:1" class="field"><label>Time Frame</label><input name="time_frame" type="number" min="0" value="<%= project.time_frame || '' %>" /></div>
+            </div>
+            <div class="field"><label>Bid Target</label><input name="bid_target" type="number" step="0.01" min="0" value="<%= project.bid_target || '' %>" /></div>
+            <button class="btn" type="submit">Save Details</button>
+          </div>
+        </div>
+      </form>
+      <% } else { %>
+        <div class="muted">View only (Admin/Manager can edit)</div>
+        <div class="card" style="background:#fafafa">
+          <div><b>Project Name:</b> <%= project.project_name %></div>
+          <div><b>Client:</b> <%= project.client_name || '-' %></div>
+          <div><b>Status:</b> <%= project.status %></div>
+          <div><b>Currency:</b> <%= project.currency %></div>
+        </div>
+      <% } %>
+
+    <% } else if (tab === 'billing') { %>
+      <h3>Billing (Completes × CPI = Total)</h3>
+      <div class="muted">Manager can set HOLD only. Admin can set HOLD/RECEIVED.</div>
+
+      <% if (user.role === 'user') { %>
+        <div class="card" style="background:#fafafa">
+          <div><b>Total Completes:</b> <%= billing.total_completes %></div>
+          <div><b>CPI (USD):</b> <%= billing.cpi_usd %></div>
+          <div><b>Total Amount:</b> $<%= Number(billing.total_amount || 0).toFixed(2) %></div>
+          <div><b>Status:</b> <%= billing.billing_status %></div>
+        </div>
+      <% } else { %>
+        <form method="post" action="/projects/<%= project.id %>/billing?_method=PUT">
+          <div class="grid">
+            <div class="card" style="grid-column: span 6;">
+              <div class="field">
+                <label>Total Completes (manual)</label>
+                <input name="total_completes" type="number" min="0" value="<%= billing.total_completes %>" />
+              </div>
+              <div class="field">
+                <label>CPI (USD)</label>
+                <input name="cpi_usd" type="number" step="0.01" min="0" value="<%= billing.cpi_usd %>" />
+              </div>
+              <div class="field">
+                <label>Total Amount (auto)</label>
+                <input value="$<%= Number(billing.total_amount || 0).toFixed(2) %>" readonly />
+              </div>
+            </div>
+            <div class="card" style="grid-column: span 6;">
+              <div class="field">
+                <label>Status</label>
+                <select name="billing_status">
+                  <option value="hold" <%= billing.billing_status==='hold'?'selected':'' %>>HOLD</option>
+                  <option value="received" <%= billing.billing_status==='received'?'selected':'' %> <%= (user.role==='manager'?'disabled':'') %>>RECEIVED</option>
+                </select>
+                <% if (user.role === 'manager') { %>
+                  <div class="muted">Manager cannot select RECEIVED.</div>
+                <% } %>
+              </div>
+              <button class="btn" type="submit">Save Billing</button>
+            </div>
+          </div>
+        </form>
+      <% } %>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

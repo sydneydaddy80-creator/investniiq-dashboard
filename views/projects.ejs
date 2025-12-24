@@ -1,0 +1,213 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Projects</title>
+  <%- include('_style') %>
+</head>
+<body>
+<header>
+  <div style="font-weight:800">Projects</div>
+  <div class="top-actions">
+    <a class="btn secondary" href="/">Dashboard</a>
+    <a class="btn secondary" href="/clients">Clients</a>
+    <a class="btn secondary" href="/users">Users</a>
+    <form method="post" action="/logout" style="margin:0">
+      <button class="btn secondary" type="submit">Logout</button>
+    </form>
+  </div>
+</header>
+
+<div class="container">
+  <% if (error) { %>
+    <div style="background:#ffecec;border:1px solid #ffc9c9;padding:10px;border-radius:8px;color:#8a1f1f;margin-bottom:10px;"><%= error %></div>
+  <% } %>
+
+  <div class="grid">
+    <div class="card" style="grid-column: span 8;">
+      <h3 style="margin-top:0">Project List</h3>
+
+      <!-- Filters -->
+      <div class="card" style="margin:12px 0;background:#fafafa;">
+        <form method="get" action="/projects" class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="field" style="width:180px;">
+            <label>Status</label>
+            <select name="status">
+              <option value="" <%= !filters?.statusFilter ? 'selected' : '' %>>All</option>
+              <option value="pending" <%= filters?.statusFilter==='pending' ? 'selected' : '' %>>PENDING</option>
+              <option value="live" <%= filters?.statusFilter==='live' ? 'selected' : '' %>>LIVE</option>
+              <option value="paused" <%= filters?.statusFilter==='paused' ? 'selected' : '' %>>PAUSED</option>
+            </select>
+          </div>
+
+          <div class="field" style="width:220px;">
+            <label>Client</label>
+            <select name="client_id">
+              <option value="" <%= !filters?.clientId ? 'selected' : '' %>>All</option>
+              <% clients.forEach(c => { %>
+                <option value="<%= c.id %>" <%= (filters?.clientId && Number(filters.clientId)===c.id) ? 'selected' : '' %>><%= c.name %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="field" style="width:220px;">
+            <label>Manager</label>
+            <select name="manager_id">
+              <option value="" <%= !filters?.managerId ? 'selected' : '' %>>All</option>
+              <% managers.forEach(m => { %>
+                <option value="<%= m.id %>" <%= (filters?.managerId && Number(filters.managerId)===m.id) ? 'selected' : '' %>><%= m.name %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="field" style="width:220px;">
+            <label>Study Type</label>
+            <select name="study_type">
+              <option value="" <%= !filters?.studyType ? 'selected' : '' %>>All</option>
+              <option value="B2B" <%= filters?.studyType==='B2B' ? 'selected' : '' %>>B2B</option>
+              <option value="B2C" <%= filters?.studyType==='B2C' ? 'selected' : '' %>>B2C</option>
+              <option value="Healthcare" <%= filters?.studyType==='Healthcare' ? 'selected' : '' %>>Healthcare</option>
+            </select>
+          </div>
+
+          <div class="field" style="width:260px;">
+            <label>Search (Name / Number / UID)</label>
+            <input name="q" value="<%= filters?.q || '' %>" placeholder="e.g. 101 / project name" />
+          </div>
+
+          <div>
+            <button class="btn" type="submit">Apply</button>
+            <a class="btn secondary" href="/projects">Reset</a>
+          </div>
+        </form>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Number</th><th>Name</th><th>Status</th><th>Client</th>
+          <th>Study Type</th><th>Manager</th><th>Completes</th><th>Clicks</th><th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% projects.forEach(p => { %>
+            <tr>
+              <td><a href="/projects/<%= p.id %>"><%= p.project_number %></a></td>
+              <td><%= p.project_name %></td>
+              <td><span class="pill <%= p.status %>"><%= p.status %></span></td>
+              <td><%= p.client_name || '-' %></td>
+              <td><%= p.study_type || '-' %></td>
+              <td><%= p.manager_name || '-' %></td>
+              <td><%= p.completes || 0 %></td>
+              <td><%= p.total_clicks || 0 %></td>
+              <td><%= (p.created_at || '').slice(0,19).replace('T',' ') %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="grid-column: span 4;">
+      <h3 style="margin-top:0">Add Project</h3>
+      <% if (user.role === 'admin' || user.role === 'manager') { %>
+      <form method="post" action="/projects">
+        <div class="field">
+          <label>Project Name*</label>
+          <input name="project_name" required />
+        </div>
+
+        <div class="field">
+          <label>Client</label>
+          <select name="client_id">
+            <option value="">-- Select Client --</option>
+            <% clients.forEach(c => { %>
+              <option value="<%= c.id %>"><%= c.name %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Project Manager</label>
+          <select name="project_manager_id">
+            <option value="">-- Select Manager --</option>
+            <% managers.forEach(m => { %>
+              <option value="<%= m.id %>"><%= m.name %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Sales Rep</label>
+          <select name="sales_rep_id">
+            <option value="">-- Select Sales --</option>
+            <% sales.forEach(s => { %>
+              <option value="<%= s.id %>"><%= s.name %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Currency</label>
+          <select name="currency">
+            <option value="USD">USD</option>
+            <option value="INR">INR</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Status</label>
+          <select name="status">
+            <option value="pending">PENDING</option>
+            <option value="live">LIVE</option>
+            <option value="paused">PAUSED</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>PO Number</label>
+          <input name="po_number" />
+        </div>
+
+        <div class="field">
+          <label>Study Type</label>
+          <select name="study_type">
+            <option value="">-- Select --</option>
+            <option value="B2B">B2B</option>
+            <option value="B2C">B2C</option>
+            <option value="Healthcare">Healthcare</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <div style="flex:1" class="field">
+            <label>LOI</label>
+            <input name="loi" type="number" min="0" />
+          </div>
+          <div style="flex:1" class="field">
+            <label>Time Frame</label>
+            <input name="time_frame" type="number" min="0" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1" class="field">
+            <label>Bid Target</label>
+            <input name="bid_target" type="number" step="0.01" min="0" />
+          </div>
+          <div style="flex:1" class="field">
+            <label>Initial CPI (USD)</label>
+            <input name="cpi_usd" type="number" step="0.01" min="0" />
+          </div>
+        </div>
+
+        <button class="btn" type="submit">Create Project</button>
+      </form>
+      <% } else { %>
+        <div class="muted">Only Admin/Manager can create projects.</div>
+      <% } %>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "investniiq-dashboard",
+  "version": "1.0.0",
+  "description": "Beginner-friendly Investniiq survey tracking dashboard (Express + SQLite + EJS).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-sqlite3": "^0.9.0",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "helmet": "^7.1.0",
+    "method-override": "^3.0.0",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
+  }
+}

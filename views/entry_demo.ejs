@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entry Demo</title>
+  <%- include('_style') %>
+</head>
+<body>
+<header>
+  <div style="font-weight:800">Investniiq Entry (Demo)</div>
+  <div class="top-actions">
+    <a class="btn secondary" href="/projects/<%= project.id %>?tab=clicks">See Click Result</a>
+  </div>
+</header>
+<div class="container">
+  <div class="card">
+    <h3 style="margin-top:0">Entry logged ✅</h3>
+    <div class="muted">Client link is not set for this project, so we show this demo page instead of redirecting.</div>
+    <p><b>Project:</b> <%= project.project_name %> (<%= project.project_uid %>)</p>
+    <p><b>Mode:</b> <%= mode %></p>
+    <p><b>User ID:</b> <%= userId %></p>
+    <p><b>Masked ID:</b> <code><%= maskedId %></code></p>
+
+    <div class="card" style="background:#fafafa">
+      <div class="muted">Simulate survey end by opening one of these:</div>
+      <div><a href="/redirect/complete?mid=<%= maskedId %>">/redirect/complete?mid=<%= maskedId %></a></div>
+      <div><a href="/redirect/terminate?mid=<%= maskedId %>">/redirect/terminate?mid=<%= maskedId %></a></div>
+      <div><a href="/redirect/quotafull?mid=<%= maskedId %>">/redirect/quotafull?mid=<%= maskedId %></a></div>
+      <div><a href="/redirect/securityTerminate?mid=<%= maskedId %>">/redirect/securityTerminate?mid=<%= maskedId %></a></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

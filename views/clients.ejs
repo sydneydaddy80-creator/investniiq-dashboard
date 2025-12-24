@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Clients</title>
+  <%- include('_style') %>
+</head>
+<body>
+<header>
+  <div style="font-weight:800">Clients</div>
+  <div class="top-actions">
+    <a class="btn secondary" href="/">Dashboard</a>
+    <a class="btn secondary" href="/projects">Projects</a>
+    <a class="btn secondary" href="/users">Users</a>
+    <form method="post" action="/logout" style="margin:0">
+      <button class="btn secondary" type="submit">Logout</button>
+    </form>
+  </div>
+</header>
+
+<div class="container">
+  <% if (error) { %>
+    <div style="background:#ffecec;border:1px solid #ffc9c9;padding:10px;border-radius:8px;color:#8a1f1f;margin-bottom:10px;"><%= error %></div>
+  <% } %>
+
+  <div class="grid">
+    <div class="card" style="grid-column: span 8;">
+      <h3 style="margin-top:0">Client List</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Email</th><th>Contact</th><th>Currency</th><th>Created By</th><th>Created At</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% clients.forEach(c => { %>
+            <tr>
+              <td><%= c.name %></td>
+              <td><%= c.email || '-' %></td>
+              <td><%= c.phone || '-' %></td>
+              <td><%= c.currency %></td>
+              <td><%= c.created_by_name || '-' %></td>
+              <td><%= (c.created_at || '').slice(0,19).replace('T',' ') %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="grid-column: span 4;">
+      <h3 style="margin-top:0">Add Client</h3>
+      <% if (user.role === 'admin' || user.role === 'manager') { %>
+      <form method="post" action="/clients">
+        <div class="field"><label>Name*</label><input name="name" required /></div>
+        <div class="field"><label>Email</label><input name="email" type="email" /></div>
+        <div class="field"><label>Phone</label><input name="phone" /></div>
+        <div class="field">
+          <label>Currency*</label>
+          <select name="currency" required>
+            <option value="USD">USD</option>
+            <option value="INR">INR</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+        <div class="field"><label>Masked Panelist Prefix</label><input name="masked_panelist_prefix" /></div>
+        <button class="btn" type="submit">Create Client</button>
+      </form>
+      <% } else { %>
+        <div class="muted">User role is view-only.</div>
+      <% } %>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Users</title>
+  <%- include('_style') %>
+</head>
+<body>
+<header>
+  <div style="font-weight:800">Users</div>
+  <div class="top-actions">
+    <a class="btn secondary" href="/">Dashboard</a>
+    <a class="btn secondary" href="/projects">Projects</a>
+    <a class="btn secondary" href="/clients">Clients</a>
+    <form method="post" action="/logout" style="margin:0">
+      <button class="btn secondary" type="submit">Logout</button>
+    </form>
+  </div>
+</header>
+
+<div class="container">
+  <% if (error) { %>
+    <div style="background:#ffecec;border:1px solid #ffc9c9;padding:10px;border-radius:8px;color:#8a1f1f;margin-bottom:10px;"><%= error %></div>
+  <% } %>
+
+  <div class="grid">
+    <div class="card" style="grid-column: span 8;">
+      <h3 style="margin-top:0">User List</h3>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Status</th><th>Role</th><th>Created</th><% if (user.role==='admin') { %><th>Actions</th><% } %></tr>
+        </thead>
+        <tbody>
+          <% users.forEach(u => { %>
+            <tr>
+              <td><%= u.name %></td>
+              <td><%= u.email %></td>
+              <td><%= u.status %></td>
+              <td><%= u.role %></td>
+              <td><%= (u.created_at || '').slice(0,19).replace('T',' ') %></td>
+              <% if (user.role==='admin') { %>
+                <td>
+                  <% if (u.id === user.id) { %>
+                    <span class="muted">(you)</span>
+                  <% } else { %>
+                    <form method="post" action="/users/<%= u.id %>/status" style="margin:0;display:flex;gap:8px;align-items:center">
+                      <input type="hidden" name="_method" value="PUT" />
+                      <select name="status" onchange="this.form.submit()" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px">
+                        <option value="enabled" <%= (u.status==='enabled'?'selected':'') %>>Enabled</option>
+                        <option value="disabled" <%= (u.status==='disabled'?'selected':'') %>>Disabled</option>
+                      </select>
+                    </form>
+                  <% } %>
+                </td>
+              <% } %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="grid-column: span 4;">
+      <h3 style="margin-top:0">Admin Actions</h3>
+      <% if (user.role === 'admin') { %>
+        <h4>Add User</h4>
+        <form method="post" action="/users">
+          <div class="field"><label>Name*</label><input name="name" required /></div>
+          <div class="field"><label>Email*</label><input name="email" type="email" required /></div>
+          <div class="field"><label>Phone</label><input name="phone" /></div>
+          <div class="field">
+            <label>Role*</label>
+            <select name="role" required>
+              <option value="manager">Manager</option>
+              <option value="user">User</option>
+              <option value="sales">Sales</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select name="status">
+              <option value="enabled">Enabled</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </div>
+          <div class="field"><label>Password*</label><input name="password" type="password" required /></div>
+          <button class="btn" type="submit">Create User</button>
+        </form>
+
+        <hr style="border:none;border-top:1px solid #eee;margin:14px 0"/>
+
+        <h4>Reset Password</h4>
+        <div class="muted">Only Admin can reset passwords. Use carefully.</div>
+        <form method="post" action="/users/1/reset-password" onsubmit="return confirm('Reset admin password?');">
+          <div class="field"><label>User ID</label><input id="uidInput" name="user_id" value="1" readonly style="display:none"/></div>
+        </form>
+        <form method="post" action="/users/0/reset-password" id="resetForm">
+          <div class="field"><label>User ID*</label><input name="id" id="resetId" type="number" min="1" required /></div>
+          <div class="field"><label>New Password*</label><input name="new_password" type="text" required /></div>
+          <button class="btn" type="submit">Reset</button>
+        </form>
+
+        <script>
+          // Change form action dynamically to /users/:id/reset-password
+          document.getElementById('resetForm').addEventListener('submit', function(e){
+            const id = document.getElementById('resetId').value;
+            this.action = '/users/' + encodeURIComponent(id) + '/reset-password';
+          });
+        </script>
+
+      <% } else { %>
+        <div class="muted">Manager/User are view-only. Only Admin can create users and reset passwords.</div>
+      <% } %>
+    </div>
+  </div>
+</div>
+</body>
+</html>
