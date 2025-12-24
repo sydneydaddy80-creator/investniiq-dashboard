@@ -95,7 +95,7 @@
           <div class="field"><label>User ID</label><input id="uidInput" name="user_id" value="1" readonly style="display:none"/></div>
         </form>
         <form method="post" action="/users/0/reset-password" id="resetForm">
-          <div class="field"><label>User ID*</label><input <input id="resetId" type="number" min="1" required /> /></div>
+          <div class="field"><label>User ID*</label><input name="id" id="resetId" type="text" required /> /></div>
           <div class="field"><label>New Password*</label><input name="new_password" type="text" required /></div>
           <button class="btn" type="submit">Reset</button>
         </form>
