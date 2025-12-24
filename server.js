@@ -581,16 +581,24 @@ app.post("/users/:id/reset-password", requireRole(["admin"]), async (req, res) =
 });
 
 // Enable/Disable user (admin only)
-app.put("/users/:id/status", requireRole(["admin"]), async (req, res) => {
+app.post("/users/:id/status", requireRole(["admin"]), async (req, res) => {
   const id = Number(req.params.id);
-  const { status } = req.body;
-  if (!['enabled','disabled'].includes(status)) return res.status(400).send('Invalid status');
   const db = openDb();
-  await run(db, `UPDATE users SET status=? WHERE id=?`, [status, id]);
-  db.close();
-  res.redirect('/users');
-});
 
+  // Current status nikaalo
+  const u = await get(db, "SELECT status FROM users WHERE id=?", [id]);
+  if (!u) {
+    db.close();
+    return res.redirect("/users");
+  }
+
+  // Toggle status
+  const newStatus = (u.status === "enabled") ? "disabled" : "enabled";
+
+  await run(db, "UPDATE users SET status=? WHERE id=?", [newStatus, id]);
+  db.close();
+  res.redirect("/users");
+});
 // --- Entry endpoint (Investniiq branded link)
 app.get("/entry/:projectLinkUid/:mode", async (req, res) => {
   const { projectLinkUid, mode } = req.params;
