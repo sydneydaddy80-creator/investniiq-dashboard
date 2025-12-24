@@ -673,7 +673,9 @@ app.get("/redirect/:status", async (req, res) => {
   }
 
   const exitIp = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").toString();
-  const now = new Date().toISOString();
+  const now = new Date().toLocaleString("sv-SE", {
+  timeZone: "Asia/Kolkata"
+}).replace(" ", "T");
 
   await run(db, `
     UPDATE click_sessions
