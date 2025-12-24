@@ -684,9 +684,15 @@ app.get("/redirect/:status", async (req, res) => {
   res.render("redirect_done", { status, mid: sessionRow.masked_id });
 });
 
+app.get("/dashboard", requireLogin, (req, res) => {
+  return res.redirect("/");
+});
+
 // --- Start app
 (async () => {
   await migrateAndSeed();
   const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`Investniiq Dashboard running on http://localhost:${port}`));
+  app.listen(port, () =>
+    console.log(`Investniiq Dashboard running on http://localhost:${port}`)
+  );
 })();
