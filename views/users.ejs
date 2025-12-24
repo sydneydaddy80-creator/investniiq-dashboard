@@ -45,8 +45,7 @@
                     <span class="muted">(you)</span>
                   <% } else { %>
                     <form method="post" action="/users/<%= u.id %>/status" style="margin:0;display:flex;gap:8px;align-items:center">
-                      <input type="hidden" name="_method" value="PUT" />
-                      <select name="status" onchange="this.form.submit()" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px">
+                    <<select name="status" onchange="this.form.submit()" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px">
                         <option value="enabled" <%= (u.status==='enabled'?'selected':'') %>>Enabled</option>
                         <option value="disabled" <%= (u.status==='disabled'?'selected':'') %>>Disabled</option>
                       </select>
