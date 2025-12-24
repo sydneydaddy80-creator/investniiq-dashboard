@@ -89,25 +89,29 @@
 
         <hr style="border:none;border-top:1px solid #eee;margin:14px 0"/>
 
-        <h4>Reset Password</h4>
-        <div class="muted">Only Admin can reset passwords. Use carefully.</div>
-        <form method="post" action="/users/1/reset-password" onsubmit="return confirm('Reset admin password?');">
-          <div class="field"><label>User ID</label><input id="uidInput" name="user_id" value="1" readonly style="display:none"/></div>
-        </form>
-        <form method="post" action="/users/0/reset-password" id="resetForm">
-          <div class="field"><label>User ID*</label><input name="id" id="resetId" type="text" required /> /></div>
-          <div class="field"><label>New Password*</label><input name="new_password" type="text" required /></div>
-          <button class="btn" type="submit">Reset</button>
-        </form>
+    <h4>Reset Password</h4>
+<div class="muted">Only Admin can reset passwords. Use carefully.</div>
 
-        <script>
-          // Change form action dynamically to /users/:id/reset-password
-          document.getElementById('resetForm').addEventListener('submit', function(e){
-            const id = document.getElementById('resetId').value;
-            this.action = '/users/' + encodeURIComponent(id) + '/reset-password';
-          });
-        </script>
+<form method="post" id="resetForm">
+  <div class="field">
+    <label>User ID*</label>
+    <input name="id" id="resetId" type="number" min="1" required />
+  </div>
 
+  <div class="field">
+    <label>New Password*</label>
+    <input name="new_password" type="text" required />
+  </div>
+
+  <button class="btn" type="submit">Reset</button>
+</form>
+
+<script>
+  document.getElementById('resetForm').addEventListener('submit', function () {
+    const id = document.getElementById('resetId').value;
+    this.action = '/users/' + encodeURIComponent(id) + '/reset-password';
+  });
+</script>
       <% } else { %>
         <div class="muted">Manager/User are view-only. Only Admin can create users and reset passwords.</div>
       <% } %>
