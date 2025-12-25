@@ -11,8 +11,7 @@ const { v4: uuidv4 } = require("uuid");
 
 const { openDb, run, get, all, migrateAndSeed } = require("./db");
 const { requireLogin, requireRole, canEditProject } = require("./auth");
-const { randomProjectUid, toMoney, safeAppendParam, replacePlaceholders } = require("./helpers");
-
+const { randomProjectUid, toMoney, safeAppendParam, replacePlaceholders, nowIST, formatIST } = require("./helpers");
 const app = express();
 app.set("view engine", "ejs");
 
