@@ -18,23 +18,26 @@ function safeAppendParam(url, key, value) {
 }
 
 function replacePlaceholders(url, vars = {}) {
-  if (!url) return url;
-  const map = {
-    USER_ID: vars.USER_ID ?? "",
-    UID: vars.USER_ID ?? "",
-    ID: vars.USER_ID ?? "",
-    MASKED_ID: vars.MASKED_ID ?? "",
-    MID: vars.MASKED_ID ?? "",
-    PROJECT_UID: vars.PROJECT_UID ?? "",
-    PID: vars.PROJECT_UID ?? "",
-  };
+function nowIST() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+}
 
-  let out = url;
-  for (const [k, v] of Object.entries(map)) {
-    out = out.replaceAll(`{${k}}`, String(v));
-    out = out.replaceAll(`{${k.toLowerCase()}}`, String(v));
-  }
-  return out;
+function formatIST(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(d);
 }
 
 module.exports = {
@@ -43,11 +46,6 @@ module.exports = {
   safeAppendParam,
   replacePlaceholders
 };
-function nowIST() {
-  return new Date().toLocaleString("sv-SE", {
-    timeZone: "Asia/Kolkata"
-  }).replace(" ", "T");
-}
 
 function formatIST(dateStr) {
   if (!dateStr) return "";
@@ -56,9 +54,11 @@ function formatIST(dateStr) {
     hour12: false
   });
 }
-
 module.exports = {
-  ...module.exports,
+  randomProjectUid,
+  toMoney,
+  safeAppendParam,
+  replacePlaceholders,
   nowIST,
   formatIST
 };
