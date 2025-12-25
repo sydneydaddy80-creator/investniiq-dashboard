@@ -405,7 +405,7 @@ app.post("/projects/:id/country-links", requireRole(["admin","manager"]), async 
       db.close();
       return res.redirect(`/projects/${projectId}?tab=entrylinks`);
     }
-    const now = new Date().toISOString();
+    const now = nowIST();
     await run(db, `
       INSERT INTO project_country_links (project_id, country_name, mode, link_url, remark, created_at)
       VALUES (?, ?, ?, ?, ?, ?);
@@ -502,7 +502,7 @@ app.put("/projects/:id/billing", requireRole(["admin","manager"]), async (req, r
   const total = completes * cpi;
 
   const db = openDb();
-  const now = new Date().toISOString();
+  const now = nowIST();
   await run(db, `
     UPDATE billing
     SET total_completes=?, cpi_usd=?, total_amount=?, billing_status=?, updated_by=?, updated_at=?
@@ -530,7 +530,7 @@ app.post("/clients", requireRole(["admin","manager"]), async (req, res) => {
   const { name, email, phone, currency, masked_panelist_prefix } = req.body;
   const db = openDb();
   try {
-    const now = new Date().toISOString();
+   const now = nowIST();
     await run(db, `
       INSERT INTO clients (name,email,phone,currency,masked_panelist_prefix,created_by,created_at)
       VALUES (?,?,?,?,?,?,?)
