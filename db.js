@@ -1,111 +1,100 @@
-// db.js
-const path = require("path");
-const fs = require("fs");
-const sqlite3 = require("sqlite3").verbose();
+// db.js (Postgres)
+const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
 
-// 1) Render: set env DB_PATH=/var/data/app.sqlite (with persistent disk)
-// 2) Local fallback: ./data/app.sqlite
-const DB_PATH =
-  process.env.DB_PATH || path.join(process.cwd(), "data", "app.sqlite");
-
-function ensureDbDir() {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is missing. Set it in Render Environment Variables.");
 }
 
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  // Supabase requires SSL in most cases
+  ssl: { rejectUnauthorized: false },
+});
+
+// db is pool itself (to keep your existing openDb signature)
 function openDb() {
-  ensureDbDir();
-  const db = new sqlite3.Database(DB_PATH);
-  return db;
+  return pool;
 }
 
-function run(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) return reject(err);
-      resolve(this);
-    });
-  });
+async function run(db, sql, params = []) {
+  // for INSERT/UPDATE/DELETE
+  const res = await db.query(sql, params);
+  return res;
 }
 
-function get(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, function (err, row) {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
+async function get(db, sql, params = []) {
+  const res = await db.query(sql, params);
+  return res.rows[0] || null;
 }
 
-function all(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, function (err, rows) {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
+async function all(db, sql, params = []) {
+  const res = await db.query(sql, params);
+  return res.rows;
+}
+
+// Helpers to convert sqlite-style ? placeholders -> $1,$2...
+function toPgParams(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
 }
 
 async function migrateAndSeed() {
   const db = openDb();
 
-  await run(db, "PRAGMA foreign_keys = ON;");
-
-  // Users
+  // USERS
   await run(
     db,
     `
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       phone TEXT,
-      role TEXT NOT NULL CHECK(role IN ('admin','manager','user','sales')),
-      status TEXT NOT NULL CHECK(status IN ('enabled','disabled')) DEFAULT 'enabled',
+      role TEXT NOT NULL CHECK (role IN ('admin','manager','user','sales')),
+      status TEXT NOT NULL CHECK (status IN ('enabled','disabled')) DEFAULT 'enabled',
       password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TIMESTAMPTZ NOT NULL
     );
   `
   );
 
-  // Clients
+  // CLIENTS
   await run(
     db,
     `
     CREATE TABLE IF NOT EXISTS clients (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT,
       phone TEXT,
       currency TEXT NOT NULL,
       masked_panelist_prefix TEXT,
-      created_by INTEGER,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY(created_by) REFERENCES users(id)
+      created_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL
     );
   `
   );
 
-  // Projects
+  // PROJECTS
   await run(
     db,
     `
     CREATE TABLE IF NOT EXISTS projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       project_number INTEGER NOT NULL UNIQUE,
       project_uid TEXT NOT NULL UNIQUE,
       project_link_uid TEXT NOT NULL UNIQUE,
       project_name TEXT NOT NULL,
-      client_id INTEGER,
-      project_manager_id INTEGER,
-      sales_rep_id INTEGER,
-      status TEXT NOT NULL CHECK(status IN ('live','pending','paused')) DEFAULT 'pending',
+      client_id INTEGER REFERENCES clients(id),
+      project_manager_id INTEGER REFERENCES users(id),
+      sales_rep_id INTEGER REFERENCES users(id),
+      status TEXT NOT NULL CHECK (status IN ('live','pending','paused')) DEFAULT 'pending',
       currency TEXT NOT NULL DEFAULT 'USD',
       po_number TEXT,
       study_type TEXT,
       loi INTEGER,
-      bid_target REAL,
+      bid_target DOUBLE PRECISION,
       time_frame INTEGER,
       client_live_link TEXT,
       client_test_link TEXT,
@@ -113,90 +102,74 @@ async function migrateAndSeed() {
       redirect_terminate_url TEXT,
       redirect_quotafull_url TEXT,
       redirect_securityterminate_url TEXT,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY(client_id) REFERENCES clients(id),
-      FOREIGN KEY(project_manager_id) REFERENCES users(id),
-      FOREIGN KEY(sales_rep_id) REFERENCES users(id)
+      created_at TIMESTAMPTZ NOT NULL
     );
   `
   );
 
-  // Project Country Entry Links
+  // PROJECT COUNTRY LINKS
   await run(
     db,
     `
     CREATE TABLE IF NOT EXISTS project_country_links (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       country_name TEXT NOT NULL,
-      mode TEXT NOT NULL CHECK(mode IN ('live','test')),
+      mode TEXT NOT NULL CHECK (mode IN ('live','test')),
       link_url TEXT NOT NULL,
       remark TEXT,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY(project_id) REFERENCES projects(id)
+      created_at TIMESTAMPTZ NOT NULL
     );
   `
   );
-  await run(
-    db,
-    `CREATE INDEX IF NOT EXISTS idx_pcl_project ON project_country_links(project_id);`
-  );
+  await run(db, `CREATE INDEX IF NOT EXISTS idx_pcl_project ON project_country_links(project_id);`);
 
-  // Billing
+  // BILLING
   await run(
     db,
     `
     CREATE TABLE IF NOT EXISTS billing (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL UNIQUE,
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
       total_completes INTEGER NOT NULL DEFAULT 0,
-      cpi_usd REAL NOT NULL DEFAULT 0,
-      total_amount REAL NOT NULL DEFAULT 0,
-      billing_status TEXT NOT NULL CHECK(billing_status IN ('hold','received')) DEFAULT 'hold',
-      updated_by INTEGER,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY(project_id) REFERENCES projects(id),
-      FOREIGN KEY(updated_by) REFERENCES users(id)
+      cpi_usd DOUBLE PRECISION NOT NULL DEFAULT 0,
+      total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+      billing_status TEXT NOT NULL CHECK (billing_status IN ('hold','received')) DEFAULT 'hold',
+      updated_by INTEGER REFERENCES users(id),
+      updated_at TIMESTAMPTZ NOT NULL
     );
   `
   );
 
-  // Click sessions
+  // CLICK SESSIONS
   await run(
     db,
     `
     CREATE TABLE IF NOT EXISTS click_sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       project_uid TEXT NOT NULL,
-      mode TEXT NOT NULL CHECK(mode IN ('live','test')),
+      mode TEXT NOT NULL CHECK (mode IN ('live','test')),
       user_id TEXT NOT NULL,
       masked_id TEXT NOT NULL UNIQUE,
-      entry_time TEXT NOT NULL,
+      entry_time TIMESTAMPTZ NOT NULL,
       entry_ip TEXT,
       entry_country TEXT,
-      exit_time TEXT,
+      exit_time TIMESTAMPTZ,
       exit_ip TEXT,
-      status TEXT NOT NULL CHECK(status IN ('pending','complete','terminate','quotafull','securityTerminate')) DEFAULT 'pending',
-      FOREIGN KEY(project_id) REFERENCES projects(id)
+      status TEXT NOT NULL CHECK (status IN ('pending','complete','terminate','quotafull','securityTerminate')) DEFAULT 'pending'
     );
   `
   );
 
-  // Indexes
   await run(db, `CREATE INDEX IF NOT EXISTS idx_click_project_entry ON click_sessions(project_id, entry_time);`);
   await run(db, `CREATE INDEX IF NOT EXISTS idx_click_project_user ON click_sessions(project_id, user_id);`);
   await run(db, `CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_id);`);
 
-  // Seed default users if not exists
-  const admin = await get(db, "SELECT id FROM users WHERE email = ?", [
-    "admin@investniiq.local",
-  ]);
-
+  // Seed admin if not exists
+  const admin = await get(db, `SELECT id FROM users WHERE email = $1`, ["admin@investniiq.local"]);
   if (!admin) {
-    const now = new Date()
-      .toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" })
-      .replace(" ", "T");
+    const now = new Date(); // Postgres stores TZ
 
     const seeds = [
       { name: "Admin", email: "admin@investniiq.local", role: "admin", pass: "Admin@123" },
@@ -208,20 +181,19 @@ async function migrateAndSeed() {
       const hash = bcrypt.hashSync(u.pass, 10);
       await run(
         db,
-        "INSERT INTO users (name,email,role,status,password_hash,created_at) VALUES (?,?,?,?,?,?)",
+        `INSERT INTO users (name,email,role,status,password_hash,created_at) VALUES ($1,$2,$3,$4,$5,$6)`,
         [u.name, u.email, u.role, "enabled", hash, now]
       );
     }
   }
-
-  db.close();
 }
 
 module.exports = {
-  DB_PATH,
   openDb,
   run,
   get,
   all,
   migrateAndSeed,
+  // exporting helper so you can convert old sqlite queries easily
+  toPgParams,
 };
