@@ -711,3 +711,4 @@ app.get("/dashboard", requireLogin, (req, res) => {
     console.log(`Investniiq Dashboard running on http://localhost:${port}`)
   );
 })();
+console.log("SERVER TIME:", new Date().toString());
