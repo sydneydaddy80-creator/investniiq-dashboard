@@ -1,6 +1,5 @@
-// db.js (Postgres)
-const { Pool } = require("pg");
-const bcrypt = require("bcryptjs");
+const path = require("path");
+const sqlite3 = require("sqlite3").verbose();
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is missing. Set it in Render Environment Variables.");
