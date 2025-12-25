@@ -43,3 +43,22 @@ module.exports = {
   safeAppendParam,
   replacePlaceholders
 };
+function nowIST() {
+  return new Date().toLocaleString("sv-SE", {
+    timeZone: "Asia/Kolkata"
+  }).replace(" ", "T");
+}
+
+function formatIST(dateStr) {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour12: false
+  });
+}
+
+module.exports = {
+  ...module.exports,
+  nowIST,
+  formatIST
+};
