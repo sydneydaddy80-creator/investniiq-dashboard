@@ -20,12 +20,22 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride("_method"));
 
+const path = require("path");
+
+app.set("trust proxy", 1); // Render ke liye important
+
 app.use(session({
-  store: new SQLiteStore({ db: "sessions.sqlite", dir: __dirname }),
+  store: new SQLiteStore({
+    db: "sessions.sqlite",
+    dir: "/var/data"   // 🔥 persistent disk path
+  }),
   secret: "investniiq-prod-2025-super-secret",
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: "lax" }
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax"
+  }
 }));
 
 app.use((req, res, next) => {
