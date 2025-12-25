@@ -202,8 +202,7 @@ app.post("/projects", requireRole(["admin", "manager"]), async (req, res) => {
       project_link_uid = randomProjectUid();
     }
 
-    const now = new Date().toISOString();
-
+    const now = nowIST();
     const r = await run(db, `
       INSERT INTO projects (
         project_number, project_uid, project_link_uid, project_name, client_id, project_manager_id, sales_rep_id,
