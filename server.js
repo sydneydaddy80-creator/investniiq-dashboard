@@ -563,7 +563,7 @@ app.post("/users", requireRole(["admin"]), async (req, res) => {
   const { name, email, phone, role, status, password } = req.body;
   const db = openDb();
   try {
-    const now = new Date().toISOString();
+    const now = nowIST();
     const hash = bcrypt.hashSync(password, 10);
     await run(db, `
       INSERT INTO users (name,email,phone,role,status,password_hash,created_at)
@@ -625,8 +625,7 @@ app.get("/entry/:projectLinkUid/:mode", async (req, res) => {
   const maskedId = uuidv4(); // 36 chars
   const entryIp = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").toString();
   const entryCountry = "Unknown"; // offline demo
-  const now = new Date().toISOString();
-
+  const now = nowIST();
   await run(db, `
     INSERT INTO click_sessions (project_id, project_uid, mode, user_id, masked_id, entry_time, entry_ip, entry_country, status)
     VALUES (?,?,?,?,?,?,?,?,?)
