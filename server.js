@@ -12,6 +12,7 @@ const { v4: uuidv4 } = require("uuid");
 const { openDb, run, get, all, migrateAndSeed } = require("./db");
 const { requireLogin, requireRole, canEditProject } = require("./auth");
 const { randomProjectUid, toMoney, safeAppendParam, replacePlaceholders, nowIST, formatIST } = require("./helpers");
+
 const app = express();
 app.set("view engine", "ejs");
 
@@ -202,7 +203,8 @@ app.post("/projects", requireRole(["admin", "manager"]), async (req, res) => {
       project_link_uid = randomProjectUid();
     }
 
-    const now = nowIST();
+    const now = new Date().toISOString();
+
     const r = await run(db, `
       INSERT INTO projects (
         project_number, project_uid, project_link_uid, project_name, client_id, project_manager_id, sales_rep_id,
@@ -216,10 +218,10 @@ app.post("/projects", requireRole(["admin", "manager"]), async (req, res) => {
       (status || "pending"), currency || "USD", po_number || null,
       study_type || null, loi ? Number(loi) : null, bid_target ? Number(bid_target) : null, time_frame ? Number(time_frame) : null,
       // default redirects (can be edited later)
-      `${req.protocol}://${req.get("host")}/redirect/complete?mid={MASKED_ID}`,
-      `${req.protocol}://${req.get("host")}/redirect/terminate?mid={MASKED_ID}`,
-      `${req.protocol}://${req.get("host")}/redirect/quotafull?mid={MASKED_ID}`,
-      `${req.protocol}://${req.get("host")}/redirect/securityTerminate?mid={MASKED_ID}`,
+      `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=1`,
+      `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=2`,
+      `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=3`,
+      `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=4`,
       now
     ]);
 
@@ -316,16 +318,23 @@ app.get("/projects/:id", requireLogin, async (req, res) => {
   db.close();
 
   // Generated Investniiq links (changes when client links updated)
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const investLive = `${baseUrl}/entry/${project.project_link_uid}/live?id={USER_ID}`;
-  const investTest = `${baseUrl}/entry/${project.project_link_uid}/test?id={USER_ID}`;
+  const baseUrl = PUBLIC_BASE_URL;
+  const investLive = `${baseUrl}/entry/${project.project_link_uid}?id={ID}&uid={UID}&pn=100&mode=live`;
+  const investTest = `${baseUrl}/entry/${project.project_link_uid}?id={ID}&uid={UID}&pn=100&mode=test`;
 
   // Redirect URLs (editable per project)
   const redirects = {
+    // Old-style (string status)
     complete: project.redirect_complete_url || `${baseUrl}/redirect/complete?mid={MASKED_ID}`,
     terminate: project.redirect_terminate_url || `${baseUrl}/redirect/terminate?mid={MASKED_ID}`,
     quotafull: project.redirect_quotafull_url || `${baseUrl}/redirect/quotafull?mid={MASKED_ID}`,
     securityTerminate: project.redirect_securityterminate_url || `${baseUrl}/redirect/securityTerminate?mid={MASKED_ID}`,
+
+    // Hubsite-style (numeric status)
+    v1_complete: `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=1`,
+    v1_terminate: `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=2`,
+    v1_quotafull: `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=3`,
+    v1_securityTerminate: `${PUBLIC_BASE_URL}/redirect/v1?id={UID}&status=4`,
   };
 
   res.render("project_detail", {
@@ -405,7 +414,7 @@ app.post("/projects/:id/country-links", requireRole(["admin","manager"]), async 
       db.close();
       return res.redirect(`/projects/${projectId}?tab=entrylinks`);
     }
-    const now = nowIST();
+    const now = new Date().toISOString();
     await run(db, `
       INSERT INTO project_country_links (project_id, country_name, mode, link_url, remark, created_at)
       VALUES (?, ?, ?, ?, ?, ?);
@@ -442,7 +451,7 @@ app.put("/projects/:id/redirects", requireRole(["admin","manager"]), async (req,
 
   // IMPORTANT: Redirect endpoints must hit OUR server so we can update click status.
   // We normalize saved URLs to always point to: /redirect/<status>?mid={MASKED_ID}
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const baseUrl = PUBLIC_BASE_URL;
   const base = new URL(baseUrl);
 
   const normalizeRedirect = (status, raw) => {
@@ -502,7 +511,7 @@ app.put("/projects/:id/billing", requireRole(["admin","manager"]), async (req, r
   const total = completes * cpi;
 
   const db = openDb();
-  const now = nowIST();
+  const now = new Date().toISOString();
   await run(db, `
     UPDATE billing
     SET total_completes=?, cpi_usd=?, total_amount=?, billing_status=?, updated_by=?, updated_at=?
@@ -530,7 +539,7 @@ app.post("/clients", requireRole(["admin","manager"]), async (req, res) => {
   const { name, email, phone, currency, masked_panelist_prefix } = req.body;
   const db = openDb();
   try {
-   const now = nowIST();
+    const now = new Date().toISOString();
     await run(db, `
       INSERT INTO clients (name,email,phone,currency,masked_panelist_prefix,created_by,created_at)
       VALUES (?,?,?,?,?,?,?)
@@ -563,7 +572,7 @@ app.post("/users", requireRole(["admin"]), async (req, res) => {
   const { name, email, phone, role, status, password } = req.body;
   const db = openDb();
   try {
-    const now = nowIST();
+    const now = new Date().toISOString();
     const hash = bcrypt.hashSync(password, 10);
     await run(db, `
       INSERT INTO users (name,email,phone,role,status,password_hash,created_at)
@@ -605,9 +614,12 @@ app.post("/users/:id/status", requireRole(["admin"]), async (req, res) => {
 });
 
 // --- Entry endpoint (Investniiq branded link)
-app.get("/entry/:projectLinkUid/:mode", async (req, res) => {
-  const { projectLinkUid, mode } = req.params;
-  const userId = (req.query.id || "").toString().trim();
+// --- Entry endpoints (Investniiq branded links)
+// Hubsite-style: /entry/:projectLinkUid?id={ID}&uid={UID}&pn=100&mode=live
+async function handleEntry(req, res, projectLinkUid, mode) {
+  const userId = (req.query.id || "").toString().trim();      // internal user/panel id
+  const uid = (req.query.uid || "").toString().trim();        // external UID used for redirects/matching (like Hubsite)
+  const pn = (req.query.pn || "").toString().trim();          // panel number (optional, for tracking)
 
   if (!["live","test"].includes(mode)) return res.status(400).send("Invalid mode");
   if (!userId) return res.status(400).send("Missing id (user id)");
@@ -622,35 +634,80 @@ app.get("/entry/:projectLinkUid/:mode", async (req, res) => {
     return res.status(403).send("Project is not LIVE. Ask admin/manager to set status LIVE.");
   }
 
-  const maskedId = uuidv4(); // 36 chars
+  // If uid passed, use it as masked_id (Hubsite behavior). Otherwise generate.
+  const maskedId = uid || uuidv4();
+
   const entryIp = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").toString();
   const entryCountry = "Unknown"; // offline demo
   const now = nowIST();
+
   await run(db, `
-    INSERT INTO click_sessions (project_id, project_uid, mode, user_id, masked_id, entry_time, entry_ip, entry_country, status)
-    VALUES (?,?,?,?,?,?,?,?,?)
+    INSERT INTO click_sessions (
+      project_id, project_uid, mode, user_id, masked_id,
+      entry_time, entry_ip, entry_country, status
+    )
+    VALUES (?,?,?,?,?,?,?,?,?,?)
   `, [project.id, project.project_uid, mode, userId, maskedId, now, entryIp, entryCountry, "pending"]);
 
   // Redirect to client link
   let dest = mode === "live" ? project.client_live_link : project.client_test_link;
+  if (!dest) { db.close(); return res.status(400).send("Client link not configured for this mode"); }
 
-  // If not set, show a demo page with masked id
-  if (!dest) {
-    db.close();
-    return res.render("entry_demo", { project, mode, userId, maskedId });
-  }
+  // Replace placeholders for client
+  dest = replacePlaceholders(dest, { ID: maskedId, UID: maskedId, MASKED_ID: maskedId, PROJECT_UID: project.project_uid });
 
-  // IMPORTANT: Do NOT send internal USER_ID to the client.
-  // Replace common placeholders with MASKED_ID instead.
-  dest = replacePlaceholders(dest, { MASKED_ID: maskedId, PROJECT_UID: project.project_uid });
-  // Also append masked id (if client wants it as query param too)
+  // Append masked id (so client can send it back)
   dest = safeAppendParam(dest, "mid", maskedId);
 
   db.close();
   return res.redirect(dest);
+}
+
+// Hubsite-style entry URL (mode in query)
+app.get("/entry/:projectLinkUid", async (req, res) => {
+  const { projectLinkUid } = req.params;
+  const mode = (req.query.mode || "live").toString().toLowerCase();
+  return handleEntry(req, res, projectLinkUid, mode);
+});
+
+// Legacy URLs (kept for backward compatibility)
+app.get("/entry/:projectLinkUid/:mode", async (req, res) => {
+  const { projectLinkUid, mode } = req.params;
+  return handleEntry(req, res, projectLinkUid, mode);
 });
 
 // --- Redirect endpoints (survey ends here)
+// Hubsite-style redirects: /redirect/v1?id={UID}&status=1|2|3|4
+app.get("/redirect/v1", async (req, res) => {
+  const uid = (req.query.id || "").toString().trim();
+  const statusNum = (req.query.status || "").toString().trim();
+
+  if (!uid) return res.status(400).send("Missing id (UID)");
+  const map = { "1": "complete", "2": "terminate", "3": "quotafull", "4": "securityTerminate" };
+  const status = map[statusNum];
+  if (!status) return res.status(400).send("Invalid status");
+
+  const db = openDb();
+  const sessionRow = await get(db, `SELECT * FROM click_sessions WHERE masked_id=?`, [uid]);
+
+  if (!sessionRow) {
+    db.close();
+    return res.status(404).send("Session not found. Pass correct UID (masked id).");
+  }
+
+  const exitIp = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").toString();
+  const now = nowIST();
+
+  await run(db, `
+    UPDATE click_sessions
+    SET status=?, exit_time=?, exit_ip=?
+    WHERE id=?;
+  `, [status, now, exitIp, sessionRow.id]);
+
+  db.close();
+  return res.render(`redirect/${status}`, { uid: sessionRow.masked_id, status });
+});
+
 app.get("/redirect/:status", async (req, res) => {
   const status = req.params.status;
   const mid = (req.query.mid || "").toString().trim();
@@ -682,9 +739,7 @@ app.get("/redirect/:status", async (req, res) => {
   }
 
   const exitIp = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").toString();
-  const now = new Date().toLocaleString("sv-SE", {
-  timeZone: "Asia/Kolkata"
-}).replace(" ", "T");
+  const now = nowIST();
 
   await run(db, `
     UPDATE click_sessions
@@ -709,4 +764,3 @@ app.get("/dashboard", requireLogin, (req, res) => {
     console.log(`Investniiq Dashboard running on http://localhost:${port}`)
   );
 })();
-console.log("SERVER TIME:", new Date().toString());
