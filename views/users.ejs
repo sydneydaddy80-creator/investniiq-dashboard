@@ -39,7 +39,7 @@
               <td><%= u.email %></td>
               <td><%= u.status %></td>
               <td><%= u.role %></td>
-              <td><%= (u.created_at || '').slice(0,19).replace('T',' ') %></td>
+              <td><%= formatIST(u.created_at) %></td>
               <% if (user.role==='admin') { %>
                 <td>
                   <% if (u.id === user.id) { %>
